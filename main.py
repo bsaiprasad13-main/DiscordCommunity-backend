@@ -119,7 +119,14 @@ def submit_email(request: Request, email: str = Form(...), discord_id: str = For
     db.add(otp_code)
     db.commit()
 
-    send_otp_email(email, otp)
+    email_sent = send_otp_email(email, otp)
+    
+    if not email_sent:
+        return templates.TemplateResponse(request, "email.html", {
+            "discord_id": discord_id,
+            "username": username,
+            "error": "We couldn't send the verification email right now. Please try again in a moment."
+        })
 
     # Render OTP page, passing discord_id along
     return templates.TemplateResponse(request, "otp.html", {

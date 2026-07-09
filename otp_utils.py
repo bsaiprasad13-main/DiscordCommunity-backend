@@ -19,10 +19,10 @@ def hash_otp(otp: str) -> str:
 def verify_otp_hash(otp: str, otp_hash: str) -> bool:
     return hash_otp(otp) == otp_hash
 
-def send_otp_email(to_email: str, otp: str):
+def send_otp_email(to_email: str, otp: str) -> bool:
     if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
         print("Warning: GMAIL credentials not set. Cannot send OTP.")
-        return
+        return False
 
     msg = EmailMessage()
     msg.set_content(f"Your verification code is: {otp}\n\nNote: This code expires in 10 minutes.")
@@ -34,5 +34,7 @@ def send_otp_email(to_email: str, otp: str):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
             server.send_message(msg)
+        return True
     except Exception as e:
         print(f"Error sending email: {e}")
+        return False
