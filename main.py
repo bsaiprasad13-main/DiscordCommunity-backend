@@ -1,17 +1,21 @@
 import os
 import httpx
 from urllib.parse import urlencode
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request, Form
 from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
+from datetime import datetime, timezone, timedelta
 from database import get_db
-from models import User
+from models import User, OTPCode
+from otp_utils import generate_otp, hash_otp, verify_otp_hash, send_otp_email
 
 load_dotenv()
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
@@ -33,7 +37,7 @@ def login():
     return RedirectResponse(discord_auth_url)
 
 @app.get("/auth/callback")
-async def callback(code: str, db: Session = Depends(get_db)):
+async def callback(request: Request, code: str, db: Session = Depends(get_db)):
     token_data = {
         "client_id": DISCORD_CLIENT_ID,
         "client_secret": DISCORD_CLIENT_SECRET,
@@ -71,4 +75,63 @@ async def callback(code: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    return {"discord_id": user.discord_id, "username": user.username}
+    return templates.TemplateResponse(request, "email.html", {
+        "discord_id": user.discord_id,
+        "username": user.username
+    })
+
+@app.post("/auth/email")
+def submit_email(request: Request, email: str = Form(...), discord_id: str = Form(...), username: str = Form(...), db: Session = Depends(get_db)):
+    if not email.lower().endswith("@smail.iitm.ac.in"):
+        return templates.TemplateResponse(request, "email.html", {
+            "discord_id": discord_id,
+            "username": username,
+            "error": "Please use your IITM email address ending in @smail.iitm.ac.in"
+        })
+
+    otp = generate_otp()
+    otp_code = OTPCode(
+        email=email,
+        otp_hash=hash_otp(otp),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
+    )
+    db.add(otp_code)
+    db.commit()
+
+    send_otp_email(email, otp)
+
+    # Render OTP page, passing discord_id along
+    return templates.TemplateResponse(request, "otp.html", {
+        "discord_id": discord_id,
+        "email": email
+    })
+
+@app.post("/auth/verify-otp")
+def verify_otp(request: Request, otp: str = Form(...), discord_id: str = Form(...), email: str = Form(...), db: Session = Depends(get_db)):
+    otp_record = db.query(OTPCode).filter(
+        OTPCode.email == email,
+        OTPCode.used == False
+    ).order_by(OTPCode.created_at.desc()).first()
+
+    now = datetime.now(timezone.utc)
+
+    if not otp_record or otp_record.expires_at < now or not verify_otp_hash(otp, otp_record.otp_hash):
+        return templates.TemplateResponse(request, "otp.html", {
+            "discord_id": discord_id,
+            "email": email,
+            "error": "Invalid or expired code, please try again"
+        })
+
+    otp_record.used = True
+    
+    user = db.query(User).filter(User.discord_id == discord_id).first()
+    if user:
+        user.email = email
+        user.verified = True
+        user.verified_at = now
+
+    db.commit()
+
+    return templates.TemplateResponse(request, "success.html", {
+        "discord_id": discord_id
+    })
