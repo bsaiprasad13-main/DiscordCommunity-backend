@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 from database import get_db
 from models import User, OTPCode
 from otp_utils import generate_otp, hash_otp, verify_otp_hash, send_otp_email
-
+from discord_utils import assign_verified_role
 load_dotenv()
 
 app = FastAPI()
@@ -107,7 +107,7 @@ def submit_email(request: Request, email: str = Form(...), discord_id: str = For
     })
 
 @app.post("/auth/verify-otp")
-def verify_otp(request: Request, otp: str = Form(...), discord_id: str = Form(...), email: str = Form(...), db: Session = Depends(get_db)):
+async def verify_otp(request: Request, otp: str = Form(...), discord_id: str = Form(...), email: str = Form(...), db: Session = Depends(get_db)):
     otp_record = db.query(OTPCode).filter(
         OTPCode.email == email,
         OTPCode.used == False
@@ -132,6 +132,9 @@ def verify_otp(request: Request, otp: str = Form(...), discord_id: str = Form(..
 
     db.commit()
 
+    success = await assign_verified_role(discord_id)
+    if not success:
+        print(f"WARNING: Failed to assign verified role to Discord user {discord_id}.")
     return templates.TemplateResponse(request, "success.html", {
         "discord_id": discord_id
     })
