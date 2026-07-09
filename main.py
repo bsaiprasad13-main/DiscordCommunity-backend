@@ -5,6 +5,9 @@ from fastapi import FastAPI, Depends, HTTPException, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
 from datetime import datetime, timezone, timedelta
@@ -14,7 +17,10 @@ from otp_utils import generate_otp, hash_otp, verify_otp_hash, send_otp_email
 from discord_utils import assign_verified_role
 load_dotenv()
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 templates = Jinja2Templates(directory="templates")
 
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
@@ -81,12 +87,27 @@ async def callback(request: Request, code: str, db: Session = Depends(get_db)):
     })
 
 @app.post("/auth/email")
+@limiter.limit("3/10minutes")
 def submit_email(request: Request, email: str = Form(...), discord_id: str = Form(...), username: str = Form(...), db: Session = Depends(get_db)):
     if not email.lower().endswith("@smail.iitm.ac.in"):
         return templates.TemplateResponse(request, "email.html", {
             "discord_id": discord_id,
             "username": username,
             "error": "Please use your IITM email address ending in @smail.iitm.ac.in"
+        })
+
+    # Check for duplicate verified email before sending OTP
+    conflict_user = db.query(User).filter(
+        User.email == email,
+        User.verified == True,
+        User.discord_id != discord_id
+    ).first()
+
+    if conflict_user:
+        return templates.TemplateResponse(request, "email.html", {
+            "discord_id": discord_id,
+            "username": username,
+            "error": "This email is already linked to another verified Discord account."
         })
 
     otp = generate_otp()
@@ -107,6 +128,7 @@ def submit_email(request: Request, email: str = Form(...), discord_id: str = For
     })
 
 @app.post("/auth/verify-otp")
+@limiter.limit("5/10minutes")
 async def verify_otp(request: Request, otp: str = Form(...), discord_id: str = Form(...), email: str = Form(...), db: Session = Depends(get_db)):
     otp_record = db.query(OTPCode).filter(
         OTPCode.email == email,
@@ -120,6 +142,20 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_id: str = F
             "discord_id": discord_id,
             "email": email,
             "error": "Invalid or expired code, please try again"
+        })
+
+    # Check for duplicate verified email
+    conflict_user = db.query(User).filter(
+        User.email == email,
+        User.verified == True,
+        User.discord_id != discord_id
+    ).first()
+
+    if conflict_user:
+        return templates.TemplateResponse(request, "otp.html", {
+            "discord_id": discord_id,
+            "email": email,
+            "error": "This email is already linked to another verified Discord account. Please contact support if you believe this is an error."
         })
 
     otp_record.used = True
