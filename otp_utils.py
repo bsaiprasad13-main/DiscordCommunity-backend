@@ -2,10 +2,21 @@ import os
 import random
 import hashlib
 import smtplib
+import socket
 from email.message import EmailMessage
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# --- Force IPv4 for all socket connections (fixes Railway IPv6 "Network unreachable") ---
+_original_getaddrinfo = socket.getaddrinfo
+
+def _ipv4_only_getaddrinfo(*args, **kwargs):
+    responses = _original_getaddrinfo(*args, **kwargs)
+    return [r for r in responses if r[0] == socket.AF_INET]
+
+socket.getaddrinfo = _ipv4_only_getaddrinfo
+# --------------------------------------------------------------------------------------
 
 GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
