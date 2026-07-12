@@ -69,7 +69,7 @@
     <p class="error">{{ error }}</p>
     {% endif %}
     <form action="/auth/verify-otp" method="POST">
-        <input type="hidden" name="discord_id" value="{{ discord_id }}">
+        <input type="hidden" name="discord_token" value="{{ discord_token }}">
         <input type="hidden" name="email" value="{{ email }}">
         <input type="text" name="otp" placeholder="123456" required pattern="\d{6}" maxlength="6">
         <button type="submit">Verify</button>

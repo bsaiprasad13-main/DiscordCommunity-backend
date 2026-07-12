@@ -9,6 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from datetime import datetime, timezone, timedelta
 from database import get_db
@@ -27,6 +28,8 @@ DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
 DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID")
+SECRET_KEY = os.getenv("SECRET_KEY")
+serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 @app.get("/health")
 def health_check():
@@ -82,17 +85,27 @@ async def callback(request: Request, code: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    discord_token = serializer.dumps(user.discord_id)
+
     return templates.TemplateResponse(request, "email.html", {
-        "discord_id": user.discord_id,
+        "discord_token": discord_token,
         "username": user.username
     })
 
 @app.post("/auth/email")
 @limiter.limit("3/10minutes")
-def submit_email(request: Request, email: str = Form(...), discord_id: str = Form(...), username: str = Form(...), db: Session = Depends(get_db)):
+def submit_email(request: Request, email: str = Form(...), discord_token: str = Form(...), db: Session = Depends(get_db)):
+    try:
+        discord_id = serializer.loads(discord_token, max_age=1800)
+    except (BadSignature, SignatureExpired):
+        return RedirectResponse("/auth/login", status_code=303)
+
+    user = db.query(User).filter(User.discord_id == discord_id).first()
+    username = user.username if user else ""
+
     if not email.lower().endswith("@smail.iitm.ac.in"):
         return templates.TemplateResponse(request, "email.html", {
-            "discord_id": discord_id,
+            "discord_token": discord_token,
             "username": username,
             "error": "Please use your IITM email address ending in @smail.iitm.ac.in"
         })
@@ -106,7 +119,7 @@ def submit_email(request: Request, email: str = Form(...), discord_id: str = For
 
     if conflict_user:
         return templates.TemplateResponse(request, "email.html", {
-            "discord_id": discord_id,
+            "discord_token": discord_token,
             "username": username,
             "error": "This email is already linked to another verified Discord account."
         })
@@ -124,20 +137,25 @@ def submit_email(request: Request, email: str = Form(...), discord_id: str = For
     
     if not email_sent:
         return templates.TemplateResponse(request, "email.html", {
-            "discord_id": discord_id,
+            "discord_token": discord_token,
             "username": username,
             "error": "We couldn't send the verification email right now. Please try again in a moment."
         })
 
-    # Render OTP page, passing discord_id along
+    # Render OTP page, passing signed token along
     return templates.TemplateResponse(request, "otp.html", {
-        "discord_id": discord_id,
+        "discord_token": discord_token,
         "email": email
     })
 
 @app.post("/auth/verify-otp")
 @limiter.limit("5/10minutes")
-async def verify_otp(request: Request, otp: str = Form(...), discord_id: str = Form(...), email: str = Form(...), db: Session = Depends(get_db)):
+async def verify_otp(request: Request, otp: str = Form(...), discord_token: str = Form(...), email: str = Form(...), db: Session = Depends(get_db)):
+    try:
+        discord_id = serializer.loads(discord_token, max_age=1800)
+    except (BadSignature, SignatureExpired):
+        return RedirectResponse("/auth/login", status_code=303)
+
     otp_record = db.query(OTPCode).filter(
         OTPCode.email == email,
         OTPCode.used == False
@@ -147,7 +165,7 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_id: str = F
 
     if not otp_record or otp_record.expires_at < now or not verify_otp_hash(otp, otp_record.otp_hash):
         return templates.TemplateResponse(request, "otp.html", {
-            "discord_id": discord_id,
+            "discord_token": discord_token,
             "email": email,
             "error": "Invalid or expired code, please try again"
         })
@@ -161,7 +179,7 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_id: str = F
 
     if conflict_user:
         return templates.TemplateResponse(request, "otp.html", {
-            "discord_id": discord_id,
+            "discord_token": discord_token,
             "email": email,
             "error": "This email is already linked to another verified Discord account. Please contact support if you believe this is an error."
         })

@@ -67,8 +67,7 @@
     <p class="error">{{ error }}</p>
     {% endif %}
     <form action="/auth/email" method="POST">
-        <input type="hidden" name="discord_id" value="{{ discord_id }}">
-        <input type="hidden" name="username" value="{{ username }}">
+        <input type="hidden" name="discord_token" value="{{ discord_token }}">
         <input type="email" name="email" placeholder="you@smail.iitm.ac.in" required>
         <button type="submit">Send Verification Code</button>
     </form>
