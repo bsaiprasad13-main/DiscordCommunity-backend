@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Already Verified</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 480px;
+            margin: 100px auto;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #444;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Welcome back, {{ username }}!</h1>
+    {% if role_assigned %}
+    <p>You're already verified. Your role has been (re)confirmed — you should have full server access now.</p>
+    {% else %}
+    <p>You're already verified, but we couldn't confirm your Discord role just now. If you still don't have access,
+        please make sure you've joined the server, then try this link again.</p>
+    {% endif %}
+</body>
+
+</html>

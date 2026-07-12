@@ -85,6 +85,13 @@ async def callback(request: Request, code: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    if user.verified:
+        success = await assign_verified_role(discord_id)
+        return templates.TemplateResponse(request, "already_verified.html", {
+            "username": user.username,
+            "role_assigned": success
+        })
+
     discord_token = serializer.dumps(user.discord_id)
 
     return templates.TemplateResponse(request, "email.html", {
