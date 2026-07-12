@@ -15,7 +15,7 @@ from datetime import datetime, timezone, timedelta
 from database import get_db
 from models import User, OTPCode
 from otp_utils import generate_otp, hash_otp, verify_otp_hash, send_otp_email
-from discord_utils import assign_verified_role
+from discord_utils import assign_verified_role, remove_verified_role, send_dm
 load_dotenv()
 
 limiter = Limiter(key_func=get_remote_address)
@@ -117,20 +117,6 @@ def submit_email(request: Request, email: str = Form(...), discord_token: str = 
             "error": "Please use your IITM email address ending in @smail.iitm.ac.in"
         })
 
-    # Check for duplicate verified email before sending OTP
-    conflict_user = db.query(User).filter(
-        User.email == email,
-        User.verified == True,
-        User.discord_id != discord_id
-    ).first()
-
-    if conflict_user:
-        return templates.TemplateResponse(request, "email.html", {
-            "discord_token": discord_token,
-            "username": username,
-            "error": "This email is already linked to another verified Discord account."
-        })
-
     otp = generate_otp()
     otp_code = OTPCode(
         email=email,
@@ -177,7 +163,7 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_token: str 
             "error": "Invalid or expired code, please try again"
         })
 
-    # Check for duplicate verified email
+    # Check for duplicate verified email — transfer verification if found
     conflict_user = db.query(User).filter(
         User.email == email,
         User.verified == True,
@@ -185,11 +171,18 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_token: str 
     ).first()
 
     if conflict_user:
-        return templates.TemplateResponse(request, "otp.html", {
-            "discord_token": discord_token,
-            "email": email,
-            "error": "This email is already linked to another verified Discord account. Please contact support if you believe this is an error."
-        })
+        old_discord_id = conflict_user.discord_id
+        await remove_verified_role(old_discord_id)
+        conflict_user.verified = False
+        conflict_user.email = None
+        conflict_user.verified_at = None
+        db.commit()
+
+        await send_dm(
+            old_discord_id,
+            f"Your CampusGuide verification for {email} has just been transferred to a different Discord account. "
+            f"If this wasn't you, please reply to this message right away."
+        )
 
     otp_record.used = True
     
