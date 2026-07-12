@@ -68,7 +68,8 @@
     {% if error %}
     <p class="error">{{ error }}</p>
     {% endif %}
-    <form action="/auth/verify-otp" method="POST">
+    <form action="/auth/verify-otp" method="POST"
+        onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Verifying...';">
         <input type="hidden" name="discord_token" value="{{ discord_token }}">
         <input type="hidden" name="email" value="{{ email }}">
         <input type="text" name="otp" placeholder="123456" required pattern="\d{6}" maxlength="6">
