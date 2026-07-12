@@ -26,6 +26,7 @@ templates = Jinja2Templates(directory="templates")
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
+DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID")
 
 @app.get("/health")
 def health_check():
@@ -179,5 +180,6 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_id: str = F
     if not success:
         print(f"WARNING: Failed to assign verified role to Discord user {discord_id}.")
     return templates.TemplateResponse(request, "success.html", {
-        "discord_id": discord_id
+        "discord_id": discord_id,
+        "guild_id": DISCORD_GUILD_ID
     })

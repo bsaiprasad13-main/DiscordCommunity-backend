@@ -1,8 +1,62 @@
 <!DOCTYPE html>
 <html>
-<head><title>Success</title></head>
+
+<head>
+    <title>Verification Successful</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 480px;
+            margin: 80px auto;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .checkmark {
+            font-size: 48px;
+            color: #2ecc71;
+        }
+
+        h1 {
+            margin-top: 10px;
+        }
+
+        p {
+            color: #444;
+            line-height: 1.5;
+        }
+
+        .discord-button {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 28px;
+            background-color: #5865F2;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .discord-button:hover {
+            background-color: #4752C4;
+        }
+    </style>
+</head>
+
 <body>
+    <div class="checkmark">✅</div>
     <h1>You're verified!</h1>
-    <p>Verification successful. You can close this window now.</p>
+    <p>
+        Your IITM email has been confirmed and you've been given the
+        <strong>Verified Student</strong> role.
+    </p>
+    <p>
+        Head back to Discord — you'll now be able to see all the channels.
+        You can close this browser tab.
+    </p>
+    <a class="discord-button" href="https://discord.com/channels/{{ guild_id }}">
+        Open Discord
+    </a>
 </body>
+
 </html>

@@ -1,18 +1,77 @@
 <!DOCTYPE html>
 <html>
-<head><title>Email Verification</title></head>
+
+<head>
+    <title>Email Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 480px;
+            margin: 100px auto;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #444;
+            line-height: 1.5;
+        }
+
+        .error {
+            color: #e74c3c;
+            background: #fdecea;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 16px 0;
+        }
+
+        form {
+            margin-top: 24px;
+        }
+
+        input[type="email"] {
+            padding: 10px;
+            width: 260px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            display: block;
+            margin: 16px auto 0;
+            padding: 12px 28px;
+            background-color: #5865F2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #4752C4;
+        }
+    </style>
+</head>
+
 <body>
     <h1>Welcome {{ username }}!</h1>
-    <p>Please enter your email to continue.</p>
+    <p>Please enter your IITM email address to continue.</p>
     {% if error %}
-    <p style="color: red;">{{ error }}</p>
+    <p class="error">{{ error }}</p>
     {% endif %}
     <form action="/auth/email" method="POST">
         <input type="hidden" name="discord_id" value="{{ discord_id }}">
         <input type="hidden" name="username" value="{{ username }}">
-        <label>Email:</label>
-        <input type="email" name="email" required>
-        <button type="submit">Submit</button>
+        <input type="email" name="email" placeholder="you@smail.iitm.ac.in" required>
+        <button type="submit">Send Verification Code</button>
     </form>
 </body>
+
 </html>
