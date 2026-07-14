@@ -1,0 +1,19 @@
+import uuid
+from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, Field
+
+from .models import EventType
+
+
+class EventIn(BaseModel):
+    event_id: uuid.UUID = Field(..., description="Client-generated UUID, used for idempotency")
+    event_type: EventType
+    discord_id: str
+    metadata: dict = Field(default_factory=dict)
+    occurred_at: Optional[datetime] = None  # bot's local timestamp; falls back to server time
+
+
+class EventAck(BaseModel):
+    event_id: uuid.UUID
+    status: str  # "recorded" | "duplicate"

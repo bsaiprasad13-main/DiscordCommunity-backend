@@ -17,6 +17,7 @@ from database import get_db
 from models import User, OTPCode, LinkClick
 from otp_utils import generate_otp, hash_otp, verify_otp_hash, send_otp_email
 from discord_utils import assign_verified_role, remove_verified_role, send_dm
+from analytics.router import router as analytics_router
 load_dotenv()
 
 limiter = Limiter(key_func=get_remote_address)
@@ -24,6 +25,7 @@ app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 templates = Jinja2Templates(directory="templates")
+app.include_router(analytics_router)
 
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
