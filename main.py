@@ -46,6 +46,11 @@ FUNNEL_STAGES = [
 ]
 
 
+def log_event(db: Session, stage: str):
+    db.add(LinkClick(stage=stage))
+    db.commit()
+
+
 def require_admin(request: Request):
     cookie = request.cookies.get("admin_session")
     if not cookie:
@@ -64,8 +69,7 @@ def health_check():
 
 @app.get("/join")
 def join_redirect(db: Session = Depends(get_db)):
-    db.add(LinkClick(stage="invite_clicked"))
-    db.commit()
+    log_event(db, "invite_clicked")
     return RedirectResponse(DISCORD_INVITE_URL, status_code=302)
 
 
@@ -127,7 +131,8 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/auth/login")
-def login():
+def login(db: Session = Depends(get_db)):
+    log_event(db, "verify_link_clicked")
     params = {
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": DISCORD_REDIRECT_URI,
@@ -185,6 +190,7 @@ async def callback(request: Request, code: str, db: Session = Depends(get_db)):
 
     discord_token = serializer.dumps(user.discord_id)
 
+    log_event(db, "email_page_reached")
     return templates.TemplateResponse(request, "email.html", {
         "discord_token": discord_token,
         "username": user.username
@@ -226,6 +232,7 @@ def submit_email(request: Request, email: str = Form(...), discord_token: str = 
             "error": "We couldn't send the verification email right now. Please try again in a moment."
         })
 
+    log_event(db, "otp_page_reached")
     # Render OTP page, passing signed token along
     return templates.TemplateResponse(request, "otp.html", {
         "discord_token": discord_token,
@@ -288,6 +295,10 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_token: str 
     success = await assign_verified_role(discord_id)
     if not success:
         print(f"WARNING: Failed to assign verified role to Discord user {discord_id}.")
+    else:
+        log_event(db, "role_assigned")
+
+    log_event(db, "verified_page_reached")
     return templates.TemplateResponse(request, "success.html", {
         "discord_id": discord_id,
         "guild_id": DISCORD_GUILD_ID
