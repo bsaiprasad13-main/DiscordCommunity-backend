@@ -5,7 +5,7 @@ from fastapi import FastAPI, Depends, HTTPException, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, Date, cast
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -128,6 +128,46 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "admin_dashboard.html", {
         "funnel": funnel
     })
+
+
+@app.get("/admin/api/trend")
+def admin_trend_data(request: Request, granularity: str = "day", db: Session = Depends(get_db)):
+    if not require_admin(request):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    if granularity not in ("day", "month"):
+        granularity = "day"
+
+    rows = (
+        db.query(
+            func.date_trunc(granularity, LinkClick.created_at).label("period"),
+            LinkClick.stage,
+            func.count(LinkClick.id).label("count")
+        )
+        .group_by("period", LinkClick.stage)
+        .order_by("period")
+        .all()
+    )
+
+    periods = sorted({row.period for row in rows})
+    fmt = "%b %d" if granularity == "day" else "%b %Y"
+    labels = [p.strftime(fmt) for p in periods]
+
+    period_index = {p: i for i, p in enumerate(periods)}
+    series_data = {key: [0] * len(periods) for key, _ in FUNNEL_STAGES}
+
+    for row in rows:
+        if row.stage in series_data:
+            idx = period_index[row.period]
+            series_data[row.stage][idx] = row.count
+
+    return {
+        "labels": labels,
+        "series": [
+            {"stage": key, "label": label, "data": series_data[key]}
+            for key, label in FUNNEL_STAGES
+        ]
+    }
 
 
 @app.get("/auth/login")

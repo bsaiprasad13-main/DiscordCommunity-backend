@@ -2,100 +2,312 @@
 <html>
 
 <head>
-    <title>Funnel Dashboard — CampusGuide</title>
+    <meta charset="UTF-8">
+    <title>Analytics — CampusGuide</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <style>
+        :root {
+            --bg: #0a0a0a;
+            --card: #111113;
+            --border: #262629;
+            --text: #ededed;
+            --text-muted: #888891;
+            --accent: #3b82f6;
+            --red: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: system-ui, sans-serif;
-            background: #0f1115;
-            color: #e6e6e6;
-            padding: 40px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 48px 40px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
         }
 
         h1 {
             font-size: 20px;
-            margin-bottom: 4px;
-        }
-
-        .subtitle {
-            color: #888;
-            font-size: 14px;
-            margin-bottom: 32px;
-        }
-
-        .stage {
-            background: #1a1d24;
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .stage-label {
-            font-size: 15px;
-        }
-
-        .stage-count {
-            font-size: 22px;
-            font-weight: 700;
-        }
-
-        .drop-off {
-            font-size: 13px;
-            color: #f87171;
-            margin-top: 2px;
-        }
-
-        .bar-bg {
-            background: #2a2d35;
-            border-radius: 6px;
-            height: 6px;
-            margin-top: 8px;
-            overflow: hidden;
-        }
-
-        .bar-fill {
-            background: #5865F2;
-            height: 100%;
-        }
-
-        .right {
-            text-align: right;
+            font-weight: 600;
+            margin: 0;
+            letter-spacing: -0.01em;
         }
 
         .logout {
             font-size: 13px;
-            color: #888;
+            color: var(--text-muted);
             text-decoration: none;
+        }
+
+        .logout:hover {
+            color: var(--text);
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 36px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 40px;
+        }
+
+        .kpi-card {
+            background: var(--card);
+            padding: 18px 20px;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 26px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+        }
+
+        .kpi-drop {
+            font-size: 12px;
+            color: var(--red);
+            margin-top: 4px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chart-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .toggle {
+            display: inline-flex;
+            background: #1a1a1d;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 2px;
+        }
+
+        .toggle button {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .toggle button.active {
+            background: #2a2a2e;
+            color: var(--text);
+        }
+
+        .legend-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .legend-item.disabled {
+            opacity: 0.35;
+        }
+
+        .empty-note {
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 40px 0;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
-    <h1>Verification Funnel</h1>
-    <div class="subtitle">
-        Live counts &middot; <a href="/admin/logout" class="logout">Log out</a>
-    </div>
+    <div class="container">
+        <div class="topbar">
+            <h1>CampusGuide Analytics</h1>
+            <a href="/admin/logout" class="logout">Log out</a>
+        </div>
+        <div class="subtitle">Verification funnel &middot; live data</div>
 
-    {% set max_count = funnel[0].count if funnel[0].count > 0 else 1 %}
-    {% for stage in funnel %}
-    <div class="stage">
-        <div style="flex: 1;">
-            <div class="stage-label">{{ stage.label }}</div>
-            <div class="bar-bg">
-                <div class="bar-fill" style="width: {{ (stage.count / max_count * 100) if max_count > 0 else 0 }}%;">
+        <div class="kpi-grid">
+            {% for stage in funnel %}
+            <div class="kpi-card">
+                <div class="kpi-label">{{ stage.label }}</div>
+                <div class="kpi-value">{{ stage.count }}</div>
+                {% if stage.drop_off is not none %}
+                <div class="kpi-drop">−{{ stage.drop_off }}%</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">Funnel activity over time</div>
+                <div class="toggle">
+                    <button id="btn-day" class="active" onclick="setGranularity('day')">Day</button>
+                    <button id="btn-month" onclick="setGranularity('month')">Month</button>
                 </div>
             </div>
-        </div>
-        <div class="right">
-            <div class="stage-count">{{ stage.count }}</div>
-            {% if stage.drop_off is not none %}
-            <div class="drop-off">−{{ stage.drop_off }}%</div>
-            {% endif %}
+            <div id="chartWrap">
+                <canvas id="trendChart" height="90"></canvas>
+            </div>
+            <div id="emptyNote" class="empty-note" style="display:none;">No data yet for this period.</div>
+            <div id="legendRow" class="legend-row"></div>
         </div>
     </div>
-    {% endfor %}
+
+    <script>
+        const COLORS = [
+            '#3b82f6', '#22d3ee', '#a78bfa', '#f472b6',
+            '#fbbf24', '#4ade80', '#f87171'
+        ];
+
+        let chart = null;
+        let currentGranularity = 'day';
+
+        async function loadTrend(granularity) {
+            const res = await fetch(`/admin/api/trend?granularity=${granularity}`);
+            const data = await res.json();
+            renderChart(data);
+        }
+
+        function renderChart(data) {
+            const canvas = document.getElementById('trendChart');
+            const emptyNote = document.getElementById('emptyNote');
+            const legendRow = document.getElementById('legendRow');
+
+            if (!data.labels.length) {
+                canvas.style.display = 'none';
+                emptyNote.style.display = 'block';
+                legendRow.innerHTML = '';
+                return;
+            }
+            canvas.style.display = 'block';
+            emptyNote.style.display = 'none';
+
+            const datasets = data.series.map((s, i) => ({
+                label: s.label,
+                data: s.data,
+                borderColor: COLORS[i % COLORS.length],
+                backgroundColor: COLORS[i % COLORS.length],
+                tension: 0.3,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+            }));
+
+            if (chart) chart.destroy();
+            const ctx = canvas.getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: data.labels, datasets },
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1a1d',
+                            borderColor: '#262629',
+                            borderWidth: 1,
+                            titleColor: '#ededed',
+                            bodyColor: '#ededed',
+                            padding: 10,
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#888891', font: { size: 11 } }, grid: { color: '#1c1c1f' } },
+                        y: { beginAtZero: true, ticks: { color: '#888891', font: { size: 11 }, precision: 0 }, grid: { color: '#1c1c1f' } }
+                    }
+                }
+            });
+
+            legendRow.innerHTML = '';
+            datasets.forEach((ds, i) => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = `<span class="legend-dot" style="background:${ds.borderColor}"></span>${ds.label}`;
+                item.onclick = () => {
+                    const meta = chart.getDatasetMeta(i);
+                    meta.hidden = !meta.hidden;
+                    item.classList.toggle('disabled', meta.hidden);
+                    chart.update();
+                };
+                legendRow.appendChild(item);
+            });
+        }
+
+        function setGranularity(g) {
+            currentGranularity = g;
+            document.getElementById('btn-day').classList.toggle('active', g === 'day');
+            document.getElementById('btn-month').classList.toggle('active', g === 'month');
+            loadTrend(g);
+        }
+
+        loadTrend('day');
+    </script>
 </body>
 
 </html>
