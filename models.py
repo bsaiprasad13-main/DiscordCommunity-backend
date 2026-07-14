@@ -22,3 +22,10 @@ class OTPCode(Base):
     expires_at = Column(DateTime(timezone=True))
     used = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class LinkClick(Base):
+    __tablename__ = "link_clicks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    stage = Column(String, default="invite_clicked", index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -5,6 +5,7 @@ from fastapi import FastAPI, Depends, HTTPException, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -13,7 +14,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from datetime import datetime, timezone, timedelta
 from database import get_db
-from models import User, OTPCode
+from models import User, OTPCode, LinkClick
 from otp_utils import generate_otp, hash_otp, verify_otp_hash, send_otp_email
 from discord_utils import assign_verified_role, remove_verified_role, send_dm
 load_dotenv()
@@ -29,11 +30,101 @@ DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
 DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID")
 SECRET_KEY = os.getenv("SECRET_KEY")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 serializer = URLSafeTimedSerializer(SECRET_KEY)
+
+DISCORD_INVITE_URL = "https://discord.gg/eJqYwt7be3"
+
+FUNNEL_STAGES = [
+    ("invite_clicked", "Clicked invite link"),
+    ("member_joined", "Joined server (@everyone assigned)"),
+    ("verify_link_clicked", "Clicked verify link"),
+    ("email_page_reached", "Reached email page"),
+    ("otp_page_reached", "Reached OTP page"),
+    ("verified_page_reached", "Reached success page"),
+    ("role_assigned", "Verified student role assigned"),
+]
+
+
+def require_admin(request: Request):
+    cookie = request.cookies.get("admin_session")
+    if not cookie:
+        return False
+    try:
+        serializer.loads(cookie, max_age=60 * 60 * 24 * 7)  # 7 days
+        return True
+    except (BadSignature, SignatureExpired):
+        return False
+
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/join")
+def join_redirect(db: Session = Depends(get_db)):
+    db.add(LinkClick(stage="invite_clicked"))
+    db.commit()
+    return RedirectResponse(DISCORD_INVITE_URL, status_code=302)
+
+
+@app.get("/admin/login")
+def admin_login_form(request: Request):
+    return templates.TemplateResponse(request, "admin_login.html", {})
+
+
+@app.post("/admin/login")
+def admin_login_submit(request: Request, password: str = Form(...)):
+    if password != ADMIN_PASSWORD:
+        return templates.TemplateResponse(request, "admin_login.html", {
+            "error": "Incorrect password"
+        })
+    response = RedirectResponse("/admin/dashboard", status_code=303)
+    session_token = serializer.dumps("admin_authenticated")
+    response.set_cookie(
+        "admin_session",
+        session_token,
+        max_age=60 * 60 * 24 * 7,
+        httponly=True,
+        samesite="lax",
+        secure=True,
+    )
+    return response
+
+
+@app.get("/admin/logout")
+def admin_logout():
+    response = RedirectResponse("/admin/login", status_code=303)
+    response.delete_cookie("admin_session")
+    return response
+
+
+@app.get("/admin/dashboard")
+def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+    if not require_admin(request):
+        return RedirectResponse("/admin/login", status_code=303)
+
+    counts_by_stage = dict(
+        db.query(LinkClick.stage, func.count(LinkClick.id))
+        .group_by(LinkClick.stage)
+        .all()
+    )
+
+    funnel = []
+    previous_count = None
+    for key, label in FUNNEL_STAGES:
+        count = counts_by_stage.get(key, 0)
+        drop_off = None
+        if previous_count is not None and previous_count > 0:
+            drop_off = round(100 * (previous_count - count) / previous_count, 1)
+        funnel.append({"key": key, "label": label, "count": count, "drop_off": drop_off})
+        previous_count = count if count > 0 else previous_count
+
+    return templates.TemplateResponse(request, "admin_dashboard.html", {
+        "funnel": funnel
+    })
+
 
 @app.get("/auth/login")
 def login():

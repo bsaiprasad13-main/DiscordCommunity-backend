@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Funnel Dashboard — CampusGuide</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0f1115;
+            color: #e6e6e6;
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .stage {
+            background: #1a1d24;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stage-label {
+            font-size: 15px;
+        }
+
+        .stage-count {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .drop-off {
+            font-size: 13px;
+            color: #f87171;
+            margin-top: 2px;
+        }
+
+        .bar-bg {
+            background: #2a2d35;
+            border-radius: 6px;
+            height: 6px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            background: #5865F2;
+            height: 100%;
+        }
+
+        .right {
+            text-align: right;
+        }
+
+        .logout {
+            font-size: 13px;
+            color: #888;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Verification Funnel</h1>
+    <div class="subtitle">
+        Live counts &middot; <a href="/admin/logout" class="logout">Log out</a>
+    </div>
+
+    {% set max_count = funnel[0].count if funnel[0].count > 0 else 1 %}
+    {% for stage in funnel %}
+    <div class="stage">
+        <div style="flex: 1;">
+            <div class="stage-label">{{ stage.label }}</div>
+            <div class="bar-bg">
+                <div class="bar-fill" style="width: {{ (stage.count / max_count * 100) if max_count > 0 else 0 }}%;">
+                </div>
+            </div>
+        </div>
+        <div class="right">
+            <div class="stage-count">{{ stage.count }}</div>
+            {% if stage.drop_off is not none %}
+            <div class="drop-off">−{{ stage.drop_off }}%</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</body>
+
+</html>
