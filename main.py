@@ -11,6 +11,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from datetime import datetime, timezone, timedelta
 from database import get_db
@@ -23,6 +24,7 @@ from analytics.ingest import record_event
 from analytics.models import EventType
 from analytics.metrics import get_overview_metrics
 from analytics.retention import get_retention_metrics
+from analytics.snapshot import compute_daily_snapshot
 load_dotenv()
 
 limiter = Limiter(key_func=get_remote_address)
@@ -67,6 +69,31 @@ def require_admin(request: Request):
         return True
     except (BadSignature, SignatureExpired):
         return False
+
+
+def run_daily_snapshot_job():
+    """
+    Wrapper for the scheduler -- creates its own DB session since this
+    runs outside any request's dependency injection (no Depends available
+    on a background job).
+    """
+    db = AnalyticsSessionLocal()
+    try:
+        snapshot = compute_daily_snapshot(db)
+        print(f"[daily-snapshot] Computed for {snapshot.snapshot_date}")
+    except Exception as e:
+        print(f"[daily-snapshot] Failed: {e}")
+    finally:
+        db.close()
+
+
+scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
+scheduler.add_job(run_daily_snapshot_job, "cron", hour=0, minute=5)
+
+
+@app.on_event("startup")
+def start_scheduler():
+    scheduler.start()
 
 
 @app.get("/health")

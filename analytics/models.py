@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, Integer, DateTime, Enum, JSON, Index
+from sqlalchemy import Column, String, Integer, DateTime, Enum, JSON, Index, Date, Float
 from sqlalchemy.dialects.postgresql import UUID
 
 from .database import AnalyticsBase as Base
@@ -79,3 +79,39 @@ class AnalyticsTopic(Base):
     __table_args__ = (
         Index("ix_analytics_topics_topic_created", "topic", "created_at"),
     )
+
+
+class AnalyticsDailySnapshot(Base):
+    """
+    One row per calendar day, storing a pre-computed summary of that
+    day's Overview/Retention/Topics metrics. Populated by the
+    APScheduler job in analytics/snapshot.py, run once daily.
+
+    Not backfilled for past days -- history starts from the day this
+    job first runs. snapshot_date is unique; compute_daily_snapshot()
+    upserts rather than creating duplicate rows if run more than once
+    on the same day.
+    """
+    __tablename__ = "analytics_daily_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    snapshot_date = Column(Date, unique=True, nullable=False, index=True)
+
+    dau = Column(Integer, nullable=False)
+    wau = Column(Integer, nullable=False)
+    mau = Column(Integer, nullable=False)
+    stickiness_pct = Column(Float, nullable=False)
+
+    day1_retention_pct = Column(Float, nullable=True)
+    day7_retention_pct = Column(Float, nullable=True)
+    day30_retention_pct = Column(Float, nullable=True)
+    day1_cohort_size = Column(Integer, nullable=False, default=0)
+    day7_cohort_size = Column(Integer, nullable=False, default=0)
+    day30_cohort_size = Column(Integer, nullable=False, default=0)
+
+    # {"hostel": 2, "placements": 1, ...} -- same shape as
+    # get_topic_metrics()["topic_counts"]
+    topic_counts = Column(JSON, nullable=False, default=dict)
+
+    created_at = Column(DateTime(timezone=True), nullable=False,
+                         default=lambda: datetime.now(timezone.utc))
