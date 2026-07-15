@@ -14,6 +14,7 @@ class EventType(str, enum.Enum):
     MESSAGE_SENT = "message_sent"
     REACTION_ADDED = "reaction_added"
     CAMPUSGUIDE_USED = "campusguide_used"
+    ROLE_VERIFIED = "role_verified"
 
 
 class AnalyticsEvent(Base):
@@ -54,3 +55,4 @@ class AnalyticsUser(Base):
     last_seen_at = Column(DateTime(timezone=True), nullable=False,
                            default=lambda: datetime.now(timezone.utc))
     total_events = Column(Integer, nullable=False, default=0)
+

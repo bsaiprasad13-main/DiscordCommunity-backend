@@ -18,6 +18,9 @@ from models import User, OTPCode, LinkClick
 from otp_utils import generate_otp, hash_otp, verify_otp_hash, send_otp_email
 from discord_utils import assign_verified_role, remove_verified_role, send_dm
 from analytics.router import router as analytics_router
+from analytics.database import AnalyticsSessionLocal
+from analytics.ingest import record_event
+from analytics.models import EventType
 load_dotenv()
 
 limiter = Limiter(key_func=get_remote_address)
@@ -339,6 +342,18 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_token: str 
         print(f"WARNING: Failed to assign verified role to Discord user {discord_id}.")
     else:
         log_event(db, "role_assigned")
+        try:
+            analytics_db = AnalyticsSessionLocal()
+            try:
+                record_event(
+                    analytics_db,
+                    event_type=EventType.ROLE_VERIFIED,
+                    discord_id=discord_id,
+                )
+            finally:
+                analytics_db.close()
+        except Exception as e:
+            print(f"WARNING: Failed to record role_verified analytics event: {e}")
 
     log_event(db, "verified_page_reached")
     return templates.TemplateResponse(request, "success.html", {
