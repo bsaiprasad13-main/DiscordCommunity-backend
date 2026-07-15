@@ -5,8 +5,9 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from .database import get_analytics_db
+from .metrics import get_overview_metrics
 from .models import AnalyticsEvent, AnalyticsUser
-from .schemas import EventIn, EventAck
+from .schemas import EventIn, EventAck, OverviewOut
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -49,3 +50,8 @@ def ingest_event(payload: EventIn, db: Session = Depends(get_analytics_db)):
         event_id=payload.event_id,
         status="recorded" if is_new else "duplicate",
     )
+
+
+@router.get("/overview", response_model=OverviewOut)
+def overview(db: Session = Depends(get_analytics_db)):
+    return get_overview_metrics(db)

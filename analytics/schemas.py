@@ -17,3 +17,14 @@ class EventIn(BaseModel):
 class EventAck(BaseModel):
     event_id: uuid.UUID
     status: str  # "recorded" | "duplicate"
+
+
+class OverviewOut(BaseModel):
+    dau: int
+    wau: int
+    mau: int
+    stickiness_pct: float
+    message_count_24h: int
+    message_count_7d: int
+    message_count_30d: int
+    generated_at: datetime
