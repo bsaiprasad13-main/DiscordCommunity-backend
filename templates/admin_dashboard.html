@@ -40,6 +40,12 @@
             margin-bottom: 4px;
         }
 
+        .topbar-links {
+            display: flex;
+            gap: 16px;
+            align-items: baseline;
+        }
+
         h1 {
             font-size: 20px;
             font-weight: 600;
@@ -47,13 +53,15 @@
             letter-spacing: -0.01em;
         }
 
-        .logout {
+        .logout,
+        .nav-link {
             font-size: 13px;
             color: var(--text-muted);
             text-decoration: none;
         }
 
-        .logout:hover {
+        .logout:hover,
+        .nav-link:hover {
             color: var(--text);
         }
 
@@ -186,7 +194,10 @@
     <div class="container">
         <div class="topbar">
             <h1>CampusGuide Analytics</h1>
-            <a href="/admin/logout" class="logout">Log out</a>
+            <div class="topbar-links">
+                <a href="/admin/analytics" class="nav-link">Community activity →</a>
+                <a href="/admin/logout" class="logout">Log out</a>
+            </div>
         </div>
         <div class="subtitle">Verification funnel &middot; live data</div>
 

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Analytics — CampusGuide</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --card: #111113;
+            --border: #262629;
+            --text: #ededed;
+            --text-muted: #888891;
+            --accent: #3b82f6;
+            --red: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 48px 40px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+        }
+
+        .topbar-links {
+            display: flex;
+            gap: 16px;
+            align-items: baseline;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            letter-spacing: -0.01em;
+        }
+
+        .logout,
+        .nav-link {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+
+        .logout:hover,
+        .nav-link:hover {
+            color: var(--text);
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 36px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 40px;
+        }
+
+        .kpi-card {
+            background: var(--card);
+            padding: 18px 20px;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 26px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+        }
+
+        .chart-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .empty-note {
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 40px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="topbar">
+            <h1>CampusGuide Analytics</h1>
+            <div class="topbar-links">
+                <a href="/admin/dashboard" class="nav-link">← Funnel</a>
+                <a href="/admin/logout" class="logout">Log out</a>
+            </div>
+        </div>
+        <div class="subtitle">Community activity &middot; live data</div>
+
+        <div class="section-title">Activity overview</div>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Daily Active Users</div>
+                <div class="kpi-value">{{ overview.dau }}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Weekly Active Users</div>
+                <div class="kpi-value">{{ overview.wau }}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Monthly Active Users</div>
+                <div class="kpi-value">{{ overview.mau }}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Stickiness (DAU/MAU)</div>
+                <div class="kpi-value">{{ overview.stickiness_pct }}%</div>
+            </div>
+        </div>
+
+        <div class="section-title">Retention (cumulative, by verification cohort)</div>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Day 1 &middot; {{ retention.day1_cohort_size }} verified</div>
+                <div class="kpi-value">
+                    {% if retention.day1_retention_pct is not none %}{{ retention.day1_retention_pct }}%{% else %}—{%
+                    endif %}
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Day 7 &middot; {{ retention.day7_cohort_size }} verified</div>
+                <div class="kpi-value">
+                    {% if retention.day7_retention_pct is not none %}{{ retention.day7_retention_pct }}%{% else %}—{%
+                    endif %}
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Day 30 &middot; {{ retention.day30_cohort_size }} verified</div>
+                <div class="kpi-value">
+                    {% if retention.day30_retention_pct is not none %}{{ retention.day30_retention_pct }}%{% else %}—{%
+                    endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">Messages by topic (all-time)</div>
+            </div>
+            <canvas id="topicsChart" height="90"></canvas>
+            <div id="emptyNote" class="empty-note" style="display:none;">No topic data yet.</div>
+        </div>
+    </div>
+
+    <script>
+        const COLORS = [
+            '#3b82f6', '#22d3ee', '#a78bfa', '#f472b6',
+            '#fbbf24', '#4ade80', '#f87171', '#94a3b8'
+        ];
+
+        async function loadTopics() {
+            const res = await fetch('/analytics/topics');
+            const data = await res.json();
+            renderTopicsChart(data.topic_counts);
+        }
+
+        function renderTopicsChart(topicCounts) {
+            const canvas = document.getElementById('topicsChart');
+            const emptyNote = document.getElementById('emptyNote');
+            const labels = Object.keys(topicCounts);
+
+            if (!labels.length) {
+                canvas.style.display = 'none';
+                emptyNote.style.display = 'block';
+                return;
+            }
+
+            const values = labels.map(l => topicCounts[l]);
+
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Messages',
+                        data: values,
+                        backgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1a1d',
+                            borderColor: '#262629',
+                            borderWidth: 1,
+                            titleColor: '#ededed',
+                            bodyColor: '#ededed',
+                            padding: 10,
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#888891', font: { size: 11 } }, grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { color: '#888891', font: { size: 11 }, precision: 0 }, grid: { color: '#1c1c1f' } }
+                    }
+                }
+            });
+        }
+
+        loadTopics();
+    </script>
+</body>
+
+</html>

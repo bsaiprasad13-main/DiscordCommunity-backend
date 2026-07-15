@@ -18,9 +18,11 @@ from models import User, OTPCode, LinkClick
 from otp_utils import generate_otp, hash_otp, verify_otp_hash, send_otp_email
 from discord_utils import assign_verified_role, remove_verified_role, send_dm
 from analytics.router import router as analytics_router
-from analytics.database import AnalyticsSessionLocal
+from analytics.database import AnalyticsSessionLocal, get_analytics_db
 from analytics.ingest import record_event
 from analytics.models import EventType
+from analytics.metrics import get_overview_metrics
+from analytics.retention import get_retention_metrics
 load_dotenv()
 
 limiter = Limiter(key_func=get_remote_address)
@@ -173,6 +175,20 @@ def admin_trend_data(request: Request, granularity: str = "day", db: Session = D
             for key, label in FUNNEL_STAGES
         ]
     }
+
+
+@app.get("/admin/analytics")
+def admin_analytics(request: Request, db: Session = Depends(get_analytics_db)):
+    if not require_admin(request):
+        return RedirectResponse("/admin/login", status_code=303)
+
+    overview = get_overview_metrics(db)
+    retention = get_retention_metrics(db)
+
+    return templates.TemplateResponse(request, "admin_analytics.html", {
+        "overview": overview,
+        "retention": retention,
+    })
 
 
 @app.get("/auth/login")
