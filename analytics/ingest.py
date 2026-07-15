@@ -5,7 +5,7 @@ from typing import Optional
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from .models import AnalyticsEvent, AnalyticsUser, EventType
+from .models import AnalyticsEvent, AnalyticsUser, AnalyticsTopic, EventType
 
 
 def record_event(
@@ -60,5 +60,16 @@ def record_event(
         )
         db.execute(user_stmt)
         db.commit()
+
+        # Write one row per topic tag, if this event carried any.
+        # Only runs for genuinely new events -- a retried/duplicate POST
+        # (is_new == False) must never double-write topic rows.
+        topics = metadata.get("topics")
+        if topics:
+            db.execute(
+                AnalyticsTopic.__table__.insert(),
+                [{"event_id": event_id, "topic": topic} for topic in topics],
+            )
+            db.commit()
 
     return is_new

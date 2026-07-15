@@ -56,3 +56,26 @@ class AnalyticsUser(Base):
                            default=lambda: datetime.now(timezone.utc))
     total_events = Column(Integer, nullable=False, default=0)
 
+
+class AnalyticsTopic(Base):
+    """
+    One row per (event, topic) pair. A single message_sent event can
+    produce zero, one, or several rows here — e.g. a message tagged
+    ["placements", "internships"] gets two rows, both pointing at the
+    same event_id. No topics matched -> no rows (not even "general" as
+    a row, unless match_topics() returned it as a real tag).
+
+    Joined to analytics_events by event_id, no FK constraint -- consistent
+    with the rest of this DB's deliberately loose-coupling style.
+    """
+    __tablename__ = "analytics_topics"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    topic = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False,
+                         default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        Index("ix_analytics_topics_topic_created", "topic", "created_at"),
+    )
