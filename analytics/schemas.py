@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict
 from pydantic import BaseModel, Field
 
 from .models import EventType
@@ -36,4 +36,8 @@ class RetentionOut(BaseModel):
     day7_cohort_size: int
     day30_retention_pct: Optional[float]
     day30_cohort_size: int
+    generated_at: datetime
+
+class TopicsOut(BaseModel):
+    topic_counts: Dict[str, int]
     generated_at: datetime

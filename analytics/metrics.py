@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import Session
 
-from .models import AnalyticsEvent, EventType
+from .models import AnalyticsEvent, AnalyticsTopic, EventType
 
 
 def _active_users_since(db: Session, since: datetime) -> int:
@@ -60,5 +60,31 @@ def get_overview_metrics(db: Session) -> dict:
         "message_count_24h": _message_count_since(db, now - timedelta(days=1)),
         "message_count_7d": _message_count_since(db, now - timedelta(days=7)),
         "message_count_30d": _message_count_since(db, now - timedelta(days=30)),
+        "generated_at": now.isoformat(),
+    }
+
+
+def get_topic_metrics(db: Session) -> dict:
+    """
+    Total count per topic, all-time (no rolling window -- unlike
+    get_overview_metrics, this wasn't asked to be time-windowed).
+
+    Counts rows in analytics_topics grouped by topic. A single message
+    can contribute to multiple topics' counts (e.g. a message tagged
+    both "hostel" and "general" adds 1 to each), by design -- see
+    topics.py's match_topics() in the bot repo.
+    """
+    now = datetime.now(timezone.utc)
+
+    rows = (
+        db.query(AnalyticsTopic.topic, func.count(AnalyticsTopic.id))
+        .group_by(AnalyticsTopic.topic)
+        .all()
+    )
+
+    topic_counts = {topic: count for topic, count in rows}
+
+    return {
+        "topic_counts": topic_counts,
         "generated_at": now.isoformat(),
     }

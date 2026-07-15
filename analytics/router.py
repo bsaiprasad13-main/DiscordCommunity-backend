@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 
 from .database import get_analytics_db
 from .ingest import record_event
-from .metrics import get_overview_metrics
+from .metrics import get_overview_metrics, get_topic_metrics
 from .retention import get_retention_metrics
-from .schemas import EventIn, EventAck, OverviewOut, RetentionOut
+from .schemas import EventIn, EventAck, OverviewOut, RetentionOut, TopicsOut
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -39,3 +39,8 @@ def overview(db: Session = Depends(get_analytics_db)):
 @router.get("/retention", response_model=RetentionOut)
 def retention(db: Session = Depends(get_analytics_db)):
     return get_retention_metrics(db)
+
+
+@router.get("/topics", response_model=TopicsOut)
+def topics(db: Session = Depends(get_analytics_db)):
+    return get_topic_metrics(db)
