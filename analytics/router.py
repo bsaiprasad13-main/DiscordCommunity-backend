@@ -7,7 +7,8 @@ from .database import get_analytics_db
 from .ingest import record_event
 from .metrics import get_overview_metrics, get_topic_metrics
 from .retention import get_retention_metrics
-from .schemas import EventIn, EventAck, OverviewOut, RetentionOut, TopicsOut
+from .snapshot import get_daily_history
+from .schemas import EventIn, EventAck, OverviewOut, RetentionOut, TopicsOut, DailyHistoryOut
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -44,3 +45,8 @@ def retention(db: Session = Depends(get_analytics_db)):
 @router.get("/topics", response_model=TopicsOut)
 def topics(db: Session = Depends(get_analytics_db)):
     return get_topic_metrics(db)
+
+
+@router.get("/history", response_model=DailyHistoryOut)
+def history(db: Session = Depends(get_analytics_db)):
+    return get_daily_history(db)

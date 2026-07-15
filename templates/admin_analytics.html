@@ -197,6 +197,28 @@
             <canvas id="topicsChart" height="90"></canvas>
             <div id="emptyNote" class="empty-note" style="display:none;">No topic data yet.</div>
         </div>
+
+        <div class="chart-section" style="margin-top: 24px;">
+            <div class="chart-header">
+                <div class="chart-title">Daily history</div>
+            </div>
+            <canvas id="historyChart" height="90"></canvas>
+            <div id="historyEmptyNote" class="empty-note" style="display:none;">No daily history yet — check back
+                after the first snapshot runs.</div>
+            <table id="historyTable"
+                style="width:100%; margin-top:24px; border-collapse:collapse; font-size:13px; display:none;">
+                <thead>
+                    <tr style="text-align:left; color:var(--text-muted); border-bottom:1px solid var(--border);">
+                        <th style="padding:8px 4px;">Date</th>
+                        <th style="padding:8px 4px;">DAU</th>
+                        <th style="padding:8px 4px;">WAU</th>
+                        <th style="padding:8px 4px;">MAU</th>
+                        <th style="padding:8px 4px;">Stickiness</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody"></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -257,7 +279,78 @@
             });
         }
 
+        async function loadHistory() {
+            const res = await fetch('/analytics/history');
+            const data = await res.json();
+            renderHistoryChart(data.snapshots);
+            renderHistoryTable(data.snapshots);
+        }
+
+        function renderHistoryChart(snapshots) {
+            const canvas = document.getElementById('historyChart');
+            const emptyNote = document.getElementById('historyEmptyNote');
+
+            if (!snapshots.length) {
+                canvas.style.display = 'none';
+                emptyNote.style.display = 'block';
+                return;
+            }
+
+            const labels = snapshots.map(s => s.snapshot_date);
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'DAU', data: snapshots.map(s => s.dau), borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.3 },
+                        { label: 'WAU', data: snapshots.map(s => s.wau), borderColor: '#22d3ee', backgroundColor: 'transparent', tension: 0.3 },
+                        { label: 'MAU', data: snapshots.map(s => s.mau), borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.3 },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: '#888891', font: { size: 11 } } },
+                        tooltip: {
+                            backgroundColor: '#1a1a1d',
+                            borderColor: '#262629',
+                            borderWidth: 1,
+                            titleColor: '#ededed',
+                            bodyColor: '#ededed',
+                            padding: 10,
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#888891', font: { size: 11 } }, grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { color: '#888891', font: { size: 11 }, precision: 0 }, grid: { color: '#1c1c1f' } }
+                    }
+                }
+            });
+        }
+
+        function renderHistoryTable(snapshots) {
+            if (!snapshots.length) return;
+            const table = document.getElementById('historyTable');
+            const tbody = document.getElementById('historyTableBody');
+            table.style.display = 'table';
+
+            snapshots.slice().reverse().forEach(s => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border)';
+                tr.innerHTML = `
+                    <td style="padding:8px 4px;">${s.snapshot_date}</td>
+                    <td style="padding:8px 4px;">${s.dau}</td>
+                    <td style="padding:8px 4px;">${s.wau}</td>
+                    <td style="padding:8px 4px;">${s.mau}</td>
+                    <td style="padding:8px 4px;">${s.stickiness_pct}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
         loadTopics();
+        loadHistory();
     </script>
 </body>
 

@@ -1,6 +1,6 @@
 import uuid
-from datetime import datetime
-from typing import Optional, Dict
+from datetime import datetime, date
+from typing import Optional, Dict, List
 from pydantic import BaseModel, Field
 
 from .models import EventType
@@ -40,4 +40,21 @@ class RetentionOut(BaseModel):
 
 class TopicsOut(BaseModel):
     topic_counts: Dict[str, int]
+    generated_at: datetime
+
+
+class DailySnapshotOut(BaseModel):
+    snapshot_date: date
+    dau: int
+    wau: int
+    mau: int
+    stickiness_pct: float
+    day1_retention_pct: Optional[float]
+    day7_retention_pct: Optional[float]
+    day30_retention_pct: Optional[float]
+    topic_counts: Dict[str, int]
+
+
+class DailyHistoryOut(BaseModel):
+    snapshots: List[DailySnapshotOut]
     generated_at: datetime

@@ -55,3 +55,36 @@ def compute_daily_snapshot(db: Session, for_date: date = None) -> AnalyticsDaily
     db.commit()
     db.refresh(snapshot)
     return snapshot
+
+
+def get_daily_history(db: Session) -> dict:
+    """
+    Returns all stored daily snapshots, oldest first. No date-range
+    filtering -- all available history was requested, and there's no
+    backfill so this naturally starts from whenever the job first ran.
+    """
+    rows = (
+        db.query(AnalyticsDailySnapshot)
+        .order_by(AnalyticsDailySnapshot.snapshot_date.asc())
+        .all()
+    )
+
+    snapshots = [
+        {
+            "snapshot_date": row.snapshot_date,
+            "dau": row.dau,
+            "wau": row.wau,
+            "mau": row.mau,
+            "stickiness_pct": row.stickiness_pct,
+            "day1_retention_pct": row.day1_retention_pct,
+            "day7_retention_pct": row.day7_retention_pct,
+            "day30_retention_pct": row.day30_retention_pct,
+            "topic_counts": row.topic_counts,
+        }
+        for row in rows
+    ]
+
+    return {
+        "snapshots": snapshots,
+        "generated_at": datetime.now(timezone.utc),
+    }
