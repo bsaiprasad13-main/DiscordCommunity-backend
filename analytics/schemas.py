@@ -28,3 +28,12 @@ class OverviewOut(BaseModel):
     message_count_7d: int
     message_count_30d: int
     generated_at: datetime
+
+class RetentionOut(BaseModel):
+    day1_retention_pct: Optional[float]
+    day1_cohort_size: int
+    day7_retention_pct: Optional[float]
+    day7_cohort_size: int
+    day30_retention_pct: Optional[float]
+    day30_cohort_size: int
+    generated_at: datetime
