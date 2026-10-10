@@ -292,10 +292,12 @@ def submit_email(request: Request, email: str = Form(...), discord_token: str = 
     except (BadSignature, SignatureExpired):
         return RedirectResponse("/auth/login", status_code=303)
 
+    email = email.strip().lower()
+
     user = db.query(User).filter(User.discord_id == discord_id).first()
     username = user.username if user else ""
 
-    if not email.lower().endswith("@smail.iitm.ac.in"):
+    if not email.endswith("@smail.iitm.ac.in"):
         return templates.TemplateResponse(request, "email.html", {
             "discord_token": discord_token,
             "username": username,
@@ -335,6 +337,8 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_token: str 
     except (BadSignature, SignatureExpired):
         return RedirectResponse("/auth/login", status_code=303)
 
+    email = email.strip().lower()
+
     otp_record = db.query(OTPCode).filter(
         OTPCode.email == email,
         OTPCode.used == False
@@ -349,14 +353,15 @@ async def verify_otp(request: Request, otp: str = Form(...), discord_token: str 
             "error": "Invalid or expired code, please try again"
         })
 
-    # Check for duplicate verified email — transfer verification if found
-    conflict_user = db.query(User).filter(
-        User.email == email,
+    # Check for duplicate verified email — transfer verification if found.
+    # Compare case-insensitively so legacy mixed-case rows are still caught.
+    conflict_users = db.query(User).filter(
+        func.lower(User.email) == email,
         User.verified == True,
         User.discord_id != discord_id
-    ).first()
+    ).all()
 
-    if conflict_user:
+    for conflict_user in conflict_users:
         old_discord_id = conflict_user.discord_id
         await remove_verified_role(old_discord_id)
         conflict_user.verified = False
